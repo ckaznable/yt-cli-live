@@ -13,11 +13,11 @@ use symphonia::core::{
     probe::Hint,
 };
 
-pub fn get_audio_data(data: &[u8]) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
+pub fn get_audio_data(data: &[u8]) -> Result<Vec<f32>, &'static str> {
     get_mono_f32(extract_ts_audio(data))
 }
 
-fn get_mono_f32(raw: Vec<u8>) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
+fn get_mono_f32(raw: Vec<u8>) -> Result<Vec<f32>, &'static str> {
     let src = Cursor::new(raw);
     // Create the media source stream.
     let mss = MediaSourceStream::new(Box::new(src), Default::default());
@@ -31,7 +31,9 @@ fn get_mono_f32(raw: Vec<u8>) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
     let dec_opts: DecoderOptions = Default::default();
 
     // Probe the media source.
-    let probed = symphonia::default::get_probe().format(&hint, mss, &fmt_opts, &meta_opts)?;
+    let probed = symphonia::default::get_probe()
+        .format(&hint, mss, &fmt_opts, &meta_opts)
+        .map_err(|_| "unsupported format")?;
 
     // Get the instantiated format reader.
     let mut format = probed.format;
@@ -44,7 +46,9 @@ fn get_mono_f32(raw: Vec<u8>) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
         .ok_or("no supported audio tracks")?;
 
     // Create a decoder for the track.
-    let mut decoder = symphonia::default::get_codecs().make(&track.codec_params, &dec_opts)?;
+    let mut decoder = symphonia::default::get_codecs()
+        .make(&track.codec_params, &dec_opts)
+        .map_err(|_| "unsupported codec")?;
 
     // Store the track identifier, it will be used to filter packets.
     let track_id = track.id;

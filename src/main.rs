@@ -22,7 +22,7 @@ struct Args {
     model: String,
 
     /// usage thread number for whisper
-    #[arg(long, default_value_t = 1)]
+    #[arg(short, long, default_value_t = 1)]
     threads: u8,
 
     /// whisper parse target language
@@ -32,6 +32,10 @@ struct Args {
     /// youtube url or youtube video id
     #[arg()]
     url: String,
+
+    /// show log of runtime
+    #[arg(short, long, default_value_t = false)]
+    verbose: bool,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -48,19 +52,23 @@ fn main() -> Result<(), Box<dyn Error>> {
     let (mut child, stdout) = get_yt_dlp_stdout(&args.url);
     let mut reader = BufReader::new(stdout);
 
-    let mut process = |buffer: &[u8]| -> Result<(), Box<dyn Error>> {
-        if let Ok(audio_data) = audio::get_audio_data(buffer) {
-            speech::process(
-                &mut state,
-                &audio_data,
-                &speech_config,
-                |segment, start, end| {
-                    println!("[{} - {}] {}", start, end, segment);
-                },
-            );
+    let mut process = |buffer: &[u8]| {
+        match audio::get_audio_data(buffer) {
+            Ok(audio_data) => {
+                speech::process( &mut state,
+                    &audio_data,
+                    &speech_config,
+                    |segment, start, end| {
+                        println!("[{} - {}] {}", start, end, segment);
+                    },
+                );
+            }
+            Err(str) => {
+                if args.verbose {
+                    println!("[error] {}", str);
+                }
+            }
         }
-
-        Ok(())
     };
 
     loop {
@@ -74,7 +82,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         if last_processed.elapsed() >= collect_time {
             if !buffer.is_empty() {
-                process(&buffer).expect("failed to process");
+                process(&buffer);
             }
 
             last_processed = Instant::now();
@@ -85,12 +93,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     if !buffer.is_empty() {
-        process(&buffer).expect("failed to process");
+        process(&buffer);
     }
 
     child
         .wait_timeout(Duration::from_secs(3))
         .expect("failed to wait on yt-dlp");
+
     Ok(())
 }
 
