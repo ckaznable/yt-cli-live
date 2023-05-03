@@ -29,6 +29,7 @@ struct Args {
     #[arg(short, long, default_value = "en")]
     lang: String,
 
+    /// youtube url or youtube video id
     #[arg()]
     url: String,
 }
