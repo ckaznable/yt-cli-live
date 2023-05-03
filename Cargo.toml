@@ -7,7 +7,7 @@ edition = "2021"
 mpeg2ts = "0.2"
 wait-timeout = "0.2.0"
 whisper-rs = { git = "https://github.com/ckaznable-archive/whisper-rs", branch = "master" }
-symphonia = { version = "0.5.2", features=["aac"] }
+symphonia = { version = "0.5.2", features=["aac", "mpa"] }
 clap = { version = "4.2.5", features = ["derive"] }
 
 
