@@ -13,6 +13,28 @@ use whisper_rs::WhisperContext;
 mod audio;
 mod speech;
 
+struct Log {
+    enable: bool,
+}
+
+impl Log {
+    fn new(enable: bool) -> Log {
+        Log { enable }
+    }
+
+    fn verbose<S: AsRef<str>>(&self, msg: S) {
+        if self.enable {
+            println!("[verbose] {}", msg.as_ref());
+        }
+    }
+
+    fn error<S: AsRef<str>>(&self, msg: S) {
+        if self.enable {
+            println!("[error] {}", msg.as_ref());
+        }
+    }
+}
+
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -40,6 +62,7 @@ struct Args {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
+    let logger = Log::new(args.verbose);
 
     let ctx = WhisperContext::new(&args.model).expect("failed to load model");
     let mut state = ctx.create_state().expect("failed to create state");
@@ -55,6 +78,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut process = |buffer: &[u8]| {
         match audio::get_audio_data(buffer) {
             Ok(audio_data) => {
+                logger.verbose(format!("Get {}kb audio data from ts", audio_data.len() / 1024));
+
                 speech::process( &mut state,
                     &audio_data,
                     &speech_config,
@@ -64,9 +89,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 );
             }
             Err(str) => {
-                if args.verbose {
-                    println!("[error] {}", str);
-                }
+                logger.error(str);
             }
         }
     };
@@ -81,6 +104,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         buffer.extend_from_slice(buf);
 
         if last_processed.elapsed() >= collect_time {
+            logger.verbose(format!("Reading {}kb data from yt-dlp", buffer.len() / 1024));
             if !buffer.is_empty() {
                 process(&buffer);
             }
