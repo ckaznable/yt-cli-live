@@ -12,9 +12,9 @@ use whisper_rs::WhisperContext;
 
 use util::Log;
 
-mod util;
 mod audio;
 mod speech;
+mod util;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
