@@ -10,30 +10,11 @@ use std::{
 use wait_timeout::ChildExt;
 use whisper_rs::WhisperContext;
 
+use util::Log;
+
+mod util;
 mod audio;
 mod speech;
-
-struct Log {
-    enable: bool,
-}
-
-impl Log {
-    fn new(enable: bool) -> Log {
-        Log { enable }
-    }
-
-    fn verbose<S: AsRef<str>>(&self, msg: S) {
-        if self.enable {
-            println!("[verbose] {}", msg.as_ref());
-        }
-    }
-
-    fn error<S: AsRef<str>>(&self, msg: S) {
-        if self.enable {
-            println!("[error] {}", msg.as_ref());
-        }
-    }
-}
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
