@@ -76,11 +76,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut reader = BufReader::new(stdout);
 
     let mut process = |buffer: &[u8]| {
+        if buffer.is_empty() {
+            return;
+        }
+
         match audio::get_audio_data(buffer) {
             Ok(audio_data) => {
-                logger.verbose(format!("Get {}kb audio data from ts", audio_data.len() / 1024));
+                logger.verbose(format!(
+                    "Get {}kb audio data from ts",
+                    audio_data.len() / 1024
+                ));
 
-                speech::process( &mut state,
+                speech::process(
+                    &mut state,
                     &audio_data,
                     &speech_config,
                     |segment, start, end| {
@@ -104,10 +112,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         buffer.extend_from_slice(buf);
 
         if last_processed.elapsed() >= collect_time {
-            logger.verbose(format!("Reading {}kb data from yt-dlp", buffer.len() / 1024));
-            if !buffer.is_empty() {
-                process(&buffer);
-            }
+            logger.verbose(format!(
+                "Reading {}kb data from yt-dlp",
+                buffer.len() / 1024
+            ));
+
+            process(&buffer);
 
             last_processed = Instant::now();
             buffer.clear();
@@ -116,10 +126,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         reader.consume(len);
     }
 
-    if !buffer.is_empty() {
-        process(&buffer);
-    }
-
+    process(&buffer);
     child
         .wait_timeout(Duration::from_secs(3))
         .expect("failed to wait on yt-dlp");
