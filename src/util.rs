@@ -19,3 +19,10 @@ impl Log {
         }
     }
 }
+
+pub fn format_timestamp_to_time(ms: i64) -> String {
+    let minutes = (ms / 60000) % 60;
+    let seconds = (ms / 1000) % 60;
+    let milliseconds = ms % 1000;
+    format!("{:02}:{:02}:{:03}", minutes, seconds, milliseconds)
+}

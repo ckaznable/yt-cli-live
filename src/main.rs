@@ -56,6 +56,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let (mut child, stdout) = get_yt_dlp_stdout(&args.url);
     let mut reader = BufReader::new(stdout);
 
+    let mut stream_timestamp = 0i64;
     let mut process = |buffer: &[u8]| {
         if buffer.is_empty() {
             return;
@@ -72,8 +73,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                     &mut state,
                     &audio_data,
                     &speech_config,
-                    |segment, start, end| {
-                        println!("[{} - {}] {}", start, end, segment);
+                    &mut |segment, start, end| {
+                        println!("[{}] {}", util::format_timestamp_to_time(stream_timestamp + start), segment);
+                        stream_timestamp += end;
                     },
                 );
             }

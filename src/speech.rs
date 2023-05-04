@@ -21,11 +21,11 @@ impl<'a> SpeechConfig<'a> {
     }
 }
 
-pub fn process<F: Fn(String, i64, i64)>(
+pub fn process<F: FnMut(&str, i64, i64)>(
     state: &mut WhisperState,
     audio_data: &[f32],
     config: &SpeechConfig<'_>,
-    f: F,
+    f: &mut F,
 ) {
     let params = get_params(config);
 
@@ -35,13 +35,19 @@ pub fn process<F: Fn(String, i64, i64)>(
     let num_segments = state
         .full_n_segments()
         .expect("failed to get number of segments");
+
+    let mut last_segment = String::from("");
     for i in 0..num_segments {
         if let (Ok(segment), Ok(start_timestamp), Ok(end_timestamp)) = (
             state.full_get_segment_text(i),
             state.full_get_segment_t0(i),
             state.full_get_segment_t1(i),
         ) {
-            f(segment, start_timestamp, end_timestamp);
+            if last_segment != segment {
+                f(segment.as_ref(), start_timestamp, end_timestamp);
+            }
+
+            last_segment = segment;
         }
     }
 }
