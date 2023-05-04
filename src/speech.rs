@@ -56,6 +56,8 @@ fn get_params<'a, 'b>(config: &SpeechConfig<'a>) -> FullParams<'a, 'b> {
     let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
     params.set_n_threads(config.threads);
     params.set_language(config.lang);
+    params.set_suppress_blank(true);
+    params.set_no_context(true);
 
     // disable anything that prints to stdout
     params.set_print_special(false);
