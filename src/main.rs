@@ -56,31 +56,38 @@ fn main() -> Result<(), Box<dyn Error>> {
     let (mut child, stdout) = get_yt_dlp_stdout(&args.url);
     let mut reader = BufReader::new(stdout);
 
-    let mut stream_timestamp = 0i64;
+    let mut stream_timestamp = 0.0f64;
     let mut process = |buffer: &[u8]| {
         if buffer.is_empty() {
+            logger.error(audio::Error::Empty.to_string());
             return;
         }
 
         match audio::get_audio_data(buffer) {
-            Ok(audio_data) => {
+            Ok((audio_data, dur)) => {
                 logger.verbose(format!(
-                    "Get {}kb audio data from ts",
-                    audio_data.len() / 1024
+                    "Get {}kb audio data and duration {:.3}s from ts",
+                    audio_data.len() / 1024,
+                    dur
                 ));
 
+                let process_timestamp = (stream_timestamp * 1000.0) as i64;
+                stream_timestamp += dur;
                 speech::process(
                     &mut state,
                     &audio_data,
                     &speech_config,
-                    &mut |segment, start, end| {
-                        println!("[{}] {}", util::format_timestamp_to_time(stream_timestamp + start), segment);
-                        stream_timestamp += end;
+                    &mut |segment, start, _| {
+                        println!(
+                            "[{}] {}",
+                            util::format_timestamp_to_time(process_timestamp + start),
+                            segment
+                        );
                     },
                 );
             }
-            Err(str) => {
-                logger.error(str);
+            Err(err) => {
+                logger.error(err.to_string());
             }
         }
     };

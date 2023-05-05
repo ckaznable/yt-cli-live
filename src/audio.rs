@@ -1,4 +1,4 @@
-use std::io::Cursor;
+use std::{fmt::Display, io::Cursor};
 
 use mpeg2ts::{
     es::StreamType,
@@ -13,11 +13,42 @@ use symphonia::core::{
     probe::Hint,
 };
 
-pub fn get_audio_data(data: &[u8]) -> Result<Vec<f32>, &'static str> {
-    get_mono_f32(extract_ts_audio(data))
+#[derive(Debug)]
+pub enum Error {
+    Format,
+    Decoder,
+    Track,
+    Empty,
 }
 
-fn get_mono_f32(raw: Vec<u8>) -> Result<Vec<f32>, &'static str> {
+impl Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use Error::*;
+
+        write!(
+            f,
+            "{}",
+            match self {
+                Format => "unsupported format",
+                Decoder => "no supported audio tracks",
+                Track => "unsupported codec",
+                Empty => "empty audio data",
+            }
+        )
+    }
+}
+
+pub fn get_audio_data(data: &[u8]) -> Result<(Vec<f32>, f64), Error> {
+    let ts_audio = extract_ts_audio(data);
+
+    if ts_audio.is_empty() {
+        Err(Error::Empty)
+    } else {
+        get_mono_f32(ts_audio)
+    }
+}
+
+fn get_mono_f32(raw: Vec<u8>) -> Result<(Vec<f32>, f64), Error> {
     let src = Cursor::new(raw);
     // Create the media source stream.
     let mss = MediaSourceStream::new(Box::new(src), Default::default());
@@ -33,7 +64,7 @@ fn get_mono_f32(raw: Vec<u8>) -> Result<Vec<f32>, &'static str> {
     // Probe the media source.
     let probed = symphonia::default::get_probe()
         .format(&hint, mss, &fmt_opts, &meta_opts)
-        .map_err(|_| "unsupported format")?;
+        .map_err(|_| Error::Format)?;
 
     // Get the instantiated format reader.
     let mut format = probed.format;
@@ -43,17 +74,20 @@ fn get_mono_f32(raw: Vec<u8>) -> Result<Vec<f32>, &'static str> {
         .tracks()
         .iter()
         .find(|t| t.codec_params.codec != CODEC_TYPE_NULL)
-        .ok_or("no supported audio tracks")?;
+        .ok_or(Error::Track)?;
 
     // Create a decoder for the track.
     let mut decoder = symphonia::default::get_codecs()
         .make(&track.codec_params, &dec_opts)
-        .map_err(|_| "unsupported codec")?;
+        .map_err(|_| Error::Decoder)?;
 
     // Store the track identifier, it will be used to filter packets.
     let track_id = track.id;
 
     let mut data: Vec<f32> = vec![];
+    let mut dur = 0.0f64;
+    let mut rate = 0.0f64;
+    let mut planes_num = 1.0f64;
 
     // The decode loop.
     loop {
@@ -88,6 +122,15 @@ fn get_mono_f32(raw: Vec<u8>) -> Result<Vec<f32>, &'static str> {
                 let planes = buf.planes();
                 let planes = planes.planes();
                 data.extend_from_slice(planes[0]);
+                dur += packet.dur as f64;
+
+                if rate == 0.0 {
+                    rate = audio_buf.spec().rate as f64;
+                }
+
+                if planes_num == 1.0 {
+                    planes_num = planes.len() as f64;
+                }
             }
             Err(symphonia::core::errors::Error::DecodeError(_)) => (),
             _ => {
@@ -96,7 +139,7 @@ fn get_mono_f32(raw: Vec<u8>) -> Result<Vec<f32>, &'static str> {
         }
     }
 
-    Ok(data)
+    Ok((data, dur / (rate * planes_num)))
 }
 
 fn extract_ts_audio(raw: &[u8]) -> Vec<u8> {
