@@ -71,6 +71,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                     dur
                 ));
 
+                let running_calc = Instant::now();
+
                 let process_timestamp = (stream_timestamp * 1000.0) as i64;
                 stream_timestamp += dur;
                 speech::process(
@@ -85,9 +87,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                         );
                     },
                 );
+
+                logger.verbose(format!("whisper process time: {}s", running_calc.elapsed().as_secs()));
             }
             Err(err) => {
                 logger.error(err.to_string());
+                stream_timestamp += collect_time.as_secs() as f64;
             }
         }
     };
