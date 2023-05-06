@@ -149,37 +149,69 @@ fn extract_ts_audio(raw: &[u8]) -> Vec<u8> {
     let mut data: Vec<u8> = vec![];
     let mut audio_pid: u16 = 0;
 
-    while let Ok(Some(packet)) = reader.read_ts_packet() {
-        use TsPayload::*;
+    loop {
+        match reader.read_ts_packet() {
+            Ok(Some(packet)) => {
+                use TsPayload::*;
 
-        let pid = packet.header.pid.as_u16();
-        let is_audio_pid = pid == audio_pid;
+                let pid = packet.header.pid.as_u16();
+                let is_audio_pid = pid == audio_pid;
 
-        if let Some(payload) = packet.payload {
-            match payload {
-                Pmt(pmt) => {
-                    if let Some(el) = pmt
-                        .table
-                        .iter()
-                        .find(|el| el.stream_type == StreamType::AdtsAac)
-                    {
-                        audio_pid = el.elementary_pid.as_u16();
+                if let Some(payload) = packet.payload {
+                    match payload {
+                        Pmt(pmt) => {
+                            if let Some(el) = pmt
+                                .table
+                                .iter()
+                                .find(|el| el.stream_type == StreamType::AdtsAac)
+                            {
+                                audio_pid = el.elementary_pid.as_u16();
+                            }
+                        }
+                        Pes(pes) => {
+                            if pes.header.stream_id.is_audio() && is_audio_pid {
+                                data.extend_from_slice(&pes.data);
+                            }
+                        }
+                        Raw(bytes) => {
+                            if is_audio_pid {
+                                data.extend_from_slice(&bytes);
+                            }
+                        }
+                        _ => (),
                     }
                 }
-                Pes(pes) => {
-                    if pes.header.stream_id.is_audio() && is_audio_pid {
-                        data.extend_from_slice(&pes.data);
-                    }
-                }
-                Raw(bytes) => {
-                    if is_audio_pid {
-                        data.extend_from_slice(&bytes);
-                    }
-                }
-                _ => (),
             }
+            Ok(None) => {
+                break
+            }
+            _ => ()
         }
     }
 
     data
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{fs::File, io::Read};
+
+    use super::extract_ts_audio;
+
+    fn read_file_to_bytes(path: &str) -> Result<Vec<u8>, std::io::Error> {
+        let mut file = File::open(path)?;
+        let mut buffer = Vec::new();
+        file.read_to_end(&mut buffer)?;
+        Ok(buffer)
+    }
+
+    #[test]
+    fn extract_ts_must_work() {
+        let file_path = "tests/test.ts";
+        if let Ok(bytes) = read_file_to_bytes(file_path) {
+            let data = extract_ts_audio(bytes.as_slice());
+            assert!(!data.is_empty());
+            assert!(data.len() < bytes.len());
+        }
+    }
 }
