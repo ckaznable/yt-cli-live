@@ -2,11 +2,16 @@
 name = "yt-cli-live"
 version = "0.1.0"
 edition = "2021"
+authors = ["ckaznable <kami25565@gmail.com>"]
+description = "youtube text streaming in cli"
+repository = "https://github.com/ckaznable/yt-cli-live"
+license = "MIT"
+keywords = ["youtube", "cli", "whisper"]
 
 [dependencies]
 mpeg2ts = "0.2"
 wait-timeout = "0.2.0"
-whisper-rs = { git = "https://github.com/ckaznable-archive/whisper-rs", branch = "master" }
+whisper-rs = { git = "https://github.com/ckaznable-archive/whisper-rs", branch = "cuda", features = ["cuda"] }
 symphonia = { version = "0.5.2", features=["aac", "mpa"] }
 clap = { version = "4.2.5", features = ["derive"] }
 

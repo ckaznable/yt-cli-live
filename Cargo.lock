@@ -709,7 +709,7 @@ dependencies = [
 [[package]]
 name = "whisper-rs"
 version = "0.6.0"
-source = "git+https://github.com/ckaznable-archive/whisper-rs?branch=master#b5072d486d9d47524afc966784060971820e8275"
+source = "git+https://github.com/ckaznable-archive/whisper-rs?branch=cuda#26c5974b44dc1248d384e0e3f34fe254ac9e82fe"
 dependencies = [
  "dashmap",
  "whisper-rs-sys",
@@ -718,9 +718,10 @@ dependencies = [
 [[package]]
 name = "whisper-rs-sys"
 version = "0.4.0"
-source = "git+https://github.com/ckaznable-archive/whisper-rs?branch=master#b5072d486d9d47524afc966784060971820e8275"
+source = "git+https://github.com/ckaznable-archive/whisper-rs?branch=cuda#26c5974b44dc1248d384e0e3f34fe254ac9e82fe"
 dependencies = [
  "bindgen",
+ "cfg-if",
 ]
 
 [[package]]
