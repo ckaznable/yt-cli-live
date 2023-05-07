@@ -6,7 +6,7 @@ Please note that the project is still under active development, and certain feat
 
 ## Requirement
 
-- yt-dlp
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp)
 
 Using yt-dlp for youtube streaming
 
