@@ -1,5 +1,6 @@
 use clap::Parser;
-use speech::SpeechConfig;
+use ringbuf::LocalRb;
+use speech::{SpeechConfig, WhisperPayload};
 use std::{
     error::Error,
     ffi::c_int,
@@ -45,25 +46,34 @@ fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
     let logger = Log::new(args.verbose);
 
+    // 1Mb buffer
+    let rb_size = 1024 * 1024;
+    let mut rb = LocalRb::<u8, Vec<_>>::new(rb_size);
+    let (mut ts_prod, mut ts_cons) = rb.split_ref();
+
     let ctx = WhisperContext::new(&args.model).expect("failed to load model");
     let mut state = ctx.create_state().expect("failed to create state");
-    let speech_config = SpeechConfig::new(args.threads as c_int, Some(&args.lang));
 
-    let mut buffer: Vec<u8> = vec![];
     let mut last_processed = Instant::now();
+    let mut streaming_time = 0.0f64;
     let collect_time = Duration::from_secs(5);
 
     let (mut child, stdout) = get_yt_dlp_stdout(&args.url);
     let mut reader = BufReader::new(stdout);
 
-    let mut stream_timestamp = 0.0f64;
-    let mut process = |buffer: &[u8]| {
-        if buffer.is_empty() {
+    let mut process = || {
+        if ts_cons.is_empty() {
             logger.error(audio::Error::Empty.to_string());
             return;
         }
 
-        match audio::get_audio_data(buffer) {
+        let data = ts_cons.pop_iter().collect::<Vec<u8>>();
+        logger.verbose(format!(
+            "Reading {}kb data from yt-dlp",
+            data.len() / 1024
+        ));
+
+        match audio::get_audio_data(&data) {
             Ok((audio_data, dur)) => {
                 logger.verbose(format!(
                     "Get {}kb audio data and duration {:.3}s from ts",
@@ -71,18 +81,20 @@ fn main() -> Result<(), Box<dyn Error>> {
                     dur
                 ));
 
+                let config = SpeechConfig::new(args.threads as c_int, Some(&args.lang));
+                let mut payload: WhisperPayload = WhisperPayload::new(&audio_data, config);
                 let running_calc = Instant::now();
 
-                let process_timestamp = (stream_timestamp * 1000.0) as i64;
-                stream_timestamp += dur;
+                let segment_time = (streaming_time * 1000.0) as i64;
+                streaming_time += dur;
+
                 speech::process(
                     &mut state,
-                    &audio_data,
-                    &speech_config,
-                    &mut |segment, start, _| {
+                    &mut payload,
+                    &mut |segment, start| {
                         println!(
                             "[{}] {}",
-                            util::format_timestamp_to_time(process_timestamp + start),
+                            util::format_timestamp_to_time(segment_time + start),
                             segment
                         );
                     },
@@ -92,7 +104,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
             Err(err) => {
                 logger.error(err.to_string());
-                stream_timestamp += collect_time.as_secs() as f64;
             }
         }
     };
@@ -104,24 +115,17 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
 
         let len = buf.len();
-        buffer.extend_from_slice(buf);
+        ts_prod.push_slice(buf);
 
-        if last_processed.elapsed() >= collect_time {
-            logger.verbose(format!(
-                "Reading {}kb data from yt-dlp",
-                buffer.len() / 1024
-            ));
-
-            process(&buffer);
-
+        if last_processed.elapsed() >= collect_time || ts_prod.is_full() {
+            process();
             last_processed = Instant::now();
-            buffer.clear();
         }
 
         reader.consume(len);
     }
 
-    process(&buffer);
+    process();
     child
         .wait_timeout(Duration::from_secs(3))
         .expect("failed to wait on yt-dlp");
