@@ -14,6 +14,7 @@ wait-timeout = "0.2.0"
 whisper-rs = { git = "https://github.com/ckaznable-archive/whisper-rs", branch = "cuda", features = ["cuda"] }
 symphonia = { version = "0.5.2", features=["aac", "mpa"] }
 clap = { version = "4.2.5", features = ["derive"] }
+ringbuf = "0.3.3"
 
 
 [profile.release]

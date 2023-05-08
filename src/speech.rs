@@ -21,12 +21,26 @@ impl<'a> SpeechConfig<'a> {
     }
 }
 
-pub fn process<F: FnMut(&str, i64, i64)>(
-    state: &mut WhisperState,
-    audio_data: &[f32],
-    config: &SpeechConfig<'_>,
-    f: &mut F,
-) {
+pub struct WhisperPayload<'a> {
+    audio_data: &'a [f32],
+    config: SpeechConfig<'a>,
+}
+
+impl<'a> WhisperPayload<'a> {
+    pub fn new<A: AsRef<[f32]>>(audio_data: &'a A, config: SpeechConfig<'a>) -> WhisperPayload<'a> {
+        WhisperPayload {
+            audio_data: audio_data.as_ref(),
+            config,
+        }
+    }
+}
+
+pub fn process<F: FnMut(&str, i64)>(state: &mut WhisperState<'_>, payload: &mut WhisperPayload, f: &mut F) {
+    let WhisperPayload {
+        audio_data,
+        config,
+    } = payload;
+
     let params = get_params(config);
 
     state.full(params, audio_data).expect("failed to run model");
@@ -38,13 +52,12 @@ pub fn process<F: FnMut(&str, i64, i64)>(
 
     let mut last_segment = String::from("");
     for i in 0..num_segments {
-        if let (Ok(segment), Ok(start_timestamp), Ok(end_timestamp)) = (
+        if let (Ok(segment), Ok(start_timestamp)) = (
             state.full_get_segment_text(i),
             state.full_get_segment_t0(i),
-            state.full_get_segment_t1(i),
         ) {
             if last_segment != segment {
-                f(segment.as_ref(), start_timestamp, end_timestamp);
+                f(segment.as_ref(), start_timestamp);
             }
 
             last_segment = segment;
@@ -57,7 +70,7 @@ fn get_params<'a, 'b>(config: &SpeechConfig<'a>) -> FullParams<'a, 'b> {
     params.set_n_threads(config.threads);
     params.set_language(config.lang);
     params.set_suppress_blank(true);
-    params.set_no_context(true);
+    params.set_no_speech_thold(0.5);
     params.set_audio_ctx(768);
 
     // disable anything that prints to stdout
