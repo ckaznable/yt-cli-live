@@ -35,11 +35,12 @@ impl<'a> WhisperPayload<'a> {
     }
 }
 
-pub fn process<F: FnMut(&str, i64)>(state: &mut WhisperState<'_>, payload: &mut WhisperPayload, f: &mut F) {
-    let WhisperPayload {
-        audio_data,
-        config,
-    } = payload;
+pub fn process<F: FnMut(&str, i64)>(
+    state: &mut WhisperState<'_>,
+    payload: &mut WhisperPayload,
+    f: &mut F,
+) {
+    let WhisperPayload { audio_data, config } = payload;
 
     let params = get_params(config);
 
@@ -52,10 +53,9 @@ pub fn process<F: FnMut(&str, i64)>(state: &mut WhisperState<'_>, payload: &mut 
 
     let mut last_segment = String::from("");
     for i in 0..num_segments {
-        if let (Ok(segment), Ok(start_timestamp)) = (
-            state.full_get_segment_text(i),
-            state.full_get_segment_t0(i),
-        ) {
+        if let (Ok(segment), Ok(start_timestamp)) =
+            (state.full_get_segment_text(i), state.full_get_segment_t0(i))
+        {
             if last_segment != segment {
                 f(segment.as_ref(), start_timestamp);
             }

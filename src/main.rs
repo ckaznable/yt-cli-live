@@ -16,6 +16,7 @@ use util::Log;
 mod audio;
 mod speech;
 mod util;
+mod vad;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -68,10 +69,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
 
         let data = ts_cons.pop_iter().collect::<Vec<u8>>();
-        logger.verbose(format!(
-            "Reading {}kb data from yt-dlp",
-            data.len() / 1024
-        ));
+        logger.verbose(format!("Reading {}kb data from yt-dlp", data.len() / 1024));
 
         match audio::get_audio_data(&data) {
             Ok((audio_data, dur)) => {
@@ -88,19 +86,18 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let segment_time = (streaming_time * 1000.0) as i64;
                 streaming_time += dur;
 
-                speech::process(
-                    &mut state,
-                    &mut payload,
-                    &mut |segment, start| {
-                        println!(
-                            "[{}] {}",
-                            util::format_timestamp_to_time(segment_time + start),
-                            segment
-                        );
-                    },
-                );
+                speech::process(&mut state, &mut payload, &mut |segment, start| {
+                    println!(
+                        "[{}] {}",
+                        util::format_timestamp_to_time(segment_time + start),
+                        segment
+                    );
+                });
 
-                logger.verbose(format!("whisper process time: {}s", running_calc.elapsed().as_secs()));
+                logger.verbose(format!(
+                    "whisper process time: {}s",
+                    running_calc.elapsed().as_secs()
+                ));
             }
             Err(err) => {
                 logger.error(err.to_string());

@@ -182,10 +182,8 @@ fn extract_ts_audio(raw: &[u8]) -> Vec<u8> {
                     }
                 }
             }
-            Ok(None) => {
-                break
-            }
-            _ => ()
+            Ok(None) => break,
+            _ => (),
         }
     }
 
