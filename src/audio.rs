@@ -4,6 +4,7 @@ use mpeg2ts::{
     es::StreamType,
     ts::{ReadTsPacket, TsPacketReader, TsPayload},
 };
+use rubato::{InterpolationParameters, InterpolationType, WindowFunction, SincFixedIn, Resampler};
 use symphonia::core::{
     audio::AudioBuffer,
     codecs::{DecoderOptions, CODEC_TYPE_NULL},
@@ -12,6 +13,8 @@ use symphonia::core::{
     meta::MetadataOptions,
     probe::Hint,
 };
+
+const YOUTUBE_TS_SAMPLE_RATE: u16 = 44100;
 
 #[derive(Debug)]
 pub enum Error {
@@ -188,6 +191,28 @@ fn extract_ts_audio(raw: &[u8]) -> Vec<u8> {
     }
 
     data
+}
+
+pub fn resample_to_16k(input: &[f32], input_sample_rate: f64, output_sample_rate: f64) -> Vec<f32> {
+    let params = InterpolationParameters {
+        sinc_len: 256,
+        f_cutoff: 0.95,
+        interpolation: InterpolationType::Linear,
+        oversampling_factor: 256,
+        window: WindowFunction::BlackmanHarris2,
+    };
+
+    let mut resampler = SincFixedIn::<f32>::new(
+        output_sample_rate / input_sample_rate,
+        2.0,
+        params,
+        input.len(),
+        1,
+    ).unwrap();
+
+    let waves_in = vec![input.to_vec()];
+    let output = resampler.process(&waves_in, None).unwrap();
+    output[0].clone()
 }
 
 #[cfg(test)]

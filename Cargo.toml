@@ -13,11 +13,10 @@ mpeg2ts = "0.2"
 wait-timeout = "0.2.0"
 whisper-rs = { git = "https://github.com/ckaznable-archive/whisper-rs", branch = "cuda" }
 symphonia = { version = "0.5.2", features=["aac", "mpa"] }
-clap = { version = "4.2.5", features = ["derive"] }
+clap = { version = "4.2.7", features = ["derive"] }
 ringbuf = "0.3.3"
-ndarray-npy = "0.8.1"
 tract-onnx = "0.17.9"
-
+rubato = "0.12.0"
 
 [profile.release]
 opt-level = 'z'     # Optimize for size
