@@ -4,7 +4,7 @@ use mpeg2ts::{
     es::StreamType,
     ts::{ReadTsPacket, TsPacketReader, TsPayload},
 };
-use rubato::{InterpolationParameters, InterpolationType, WindowFunction, SincFixedIn, Resampler};
+use rubato::{InterpolationParameters, InterpolationType, Resampler, SincFixedIn, WindowFunction};
 use symphonia::core::{
     audio::AudioBuffer,
     codecs::{DecoderOptions, CODEC_TYPE_NULL},
@@ -208,7 +208,8 @@ pub fn resample_to_16k(input: &[f32], input_sample_rate: f64, output_sample_rate
         params,
         input.len(),
         1,
-    ).unwrap();
+    )
+    .unwrap();
 
     let waves_in = vec![input.to_vec()];
     let output = resampler.process(&waves_in, None).unwrap();
