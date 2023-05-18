@@ -107,8 +107,11 @@ fn main() -> Result<(), Box<dyn Error>> {
                     ));
 
                     ts_prod.push_slice(&audio_data);
-                    if tx.send(ThreadState::Sync).is_err() {
-                        break;
+                    if let Err(e) = tx.try_send(ThreadState::Sync) {
+                        match e {
+                            mpsc::TrySendError::Full(_) => (),
+                            mpsc::TrySendError::Disconnected(_) => break,
+                        }
                     }
                 }
                 Err(err) => {
@@ -190,8 +193,11 @@ fn evoke_vad_thread(
 
                 if !buf.is_empty() {
                     prod.push_iter(&mut buf.into_iter());
-                    if tx.send(ThreadState::Sync).is_err() {
-                        break;
+                    if let Err(e) = tx.try_send(ThreadState::Sync) {
+                        match e {
+                            mpsc::TrySendError::Full(_) => (),
+                            mpsc::TrySendError::Disconnected(_) => break,
+                        }
                     }
                 }
             }
