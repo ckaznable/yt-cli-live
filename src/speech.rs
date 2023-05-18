@@ -70,8 +70,9 @@ fn get_params<'a, 'b>(config: &SpeechConfig<'a>) -> FullParams<'a, 'b> {
     params.set_n_threads(config.threads);
     params.set_language(config.lang);
     params.set_suppress_blank(true);
-    params.set_no_speech_thold(0.5);
-    params.set_audio_ctx(768);
+    params.set_no_speech_thold(1.);
+    params.set_single_segment(true);
+    params.set_no_context(true);
 
     // disable anything that prints to stdout
     params.set_print_special(false);
