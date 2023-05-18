@@ -7,7 +7,7 @@ use tract_onnx::{
 };
 
 // vad sample rate
-const SAMPLE_RATE: f32 = 16000.0;
+pub const SAMPLE_RATE: f32 = 16000.0;
 // 30ms chunk size
 pub const WINDOW_SIZE_SAMPLES: usize = (SAMPLE_RATE * 0.03) as usize;
 
@@ -25,6 +25,7 @@ pub struct VadState {
     triggered: bool,
     speech_start_ts: u32,
     speech_end_ts: u32,
+    window_count: u32,
 
     /// 15s audio data ring buffer
     rb_prod: F32RingBufProducer,
@@ -62,6 +63,7 @@ impl VadState {
             triggered: false,
             speech_start_ts: 0,
             speech_end_ts: 0,
+            window_count: 0,
             rb_prod: prod,
             rb_cons: cons,
         })
@@ -79,15 +81,14 @@ pub fn vad(
     audio_data: Vec<f32>,
     buf: &mut Vec<VadSegment>,
 ) -> TractResult<()> {
+    state.rb_prod.push_slice(&audio_data);
     let pcm = Array::from_shape_vec((1, audio_data.len()), audio_data).unwrap();
     let pcm = pcm.into_arc_tensor();
     let samples = pcm.shape()[1];
-
-    let offset = WINDOW_SIZE_SAMPLES;
-    let chunk_len = (samples - offset).min(WINDOW_SIZE_SAMPLES);
+    let chunk_len = samples.min(WINDOW_SIZE_SAMPLES);
 
     let mut x = Tensor::zero::<f32>(&[1, WINDOW_SIZE_SAMPLES])?;
-    x.assign_slice(0..chunk_len, &pcm, offset..offset + chunk_len, 1)?;
+    x.assign_slice(0..chunk_len, &pcm, 0..chunk_len, 1)?;
 
     let mut outputs = state
         .model
@@ -104,24 +105,30 @@ pub fn vad(
     const MIN_SILENCE_SAMPLES: u32 = MIN_SILENCE_DURATION_MS * SAMPLE_RATE as u32 / 1000;
     const MIN_SPEECH_SAMPLES: u32 = MIN_SPEECH_DURATION_MS * SAMPLE_RATE as u32 / 1000;
 
-    let current_samples = state.rb_prod.len() as u32;
+    let speech_sample_offset = state.window_count * WINDOW_SIZE_SAMPLES as u32;
+    state.window_count += 1;
 
     if speech_prob >= THRESHOLD && state.speech_end_ts != 0 {
         state.speech_end_ts = 0;
     }
 
-    if speech_prob >= THRESHOLD && state.triggered {
+    if speech_prob >= THRESHOLD && !state.triggered {
         state.triggered = true;
+        state.speech_start_ts = speech_sample_offset;
     } else if speech_prob < NEG_THRESHOLD && state.triggered {
         if state.speech_end_ts == 0 {
-            state.speech_end_ts = current_samples;
+            state.speech_end_ts = speech_sample_offset;
         }
 
-        if current_samples - state.speech_end_ts >= MIN_SILENCE_SAMPLES {
+        if speech_sample_offset - state.speech_end_ts >= MIN_SILENCE_SAMPLES {
             if state.speech_end_ts - state.speech_start_ts > MIN_SPEECH_SAMPLES {
+                state.window_count = 0;
+                state.speech_end_ts = 0;
+                state.speech_start_ts = 0;
+
                 buf.push(VadSegment {
                     data: state.rb_cons.pop_iter().collect_vec(),
-                    duration: current_samples as f32 / SAMPLE_RATE,
+                    duration: speech_sample_offset as f32 / SAMPLE_RATE,
                 });
             }
 
