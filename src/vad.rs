@@ -70,8 +70,8 @@ impl VadState {
 
 #[derive(Default)]
 pub struct VadSegment {
-    data: Vec<f32>,
-    duration: f32,
+    pub data: Vec<f32>,
+    pub duration: f32,
 }
 
 pub fn vad(

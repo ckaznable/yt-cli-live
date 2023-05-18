@@ -1,6 +1,8 @@
+use audio::{YOUTUBE_TS_SAMPLE_RATE, resample_to_16k};
 use clap::Parser;
-use ringbuf::{Consumer, LocalRb, SharedRb};
+use ringbuf::{Consumer, LocalRb, SharedRb, HeapRb, Producer, Rb};
 use speech::{SpeechConfig, WhisperPayload};
+use vad::{VadState, WINDOW_SIZE_SAMPLES, split_audio_data_with_window_size};
 use std::{
     error::Error,
     ffi::c_int,
@@ -8,7 +10,7 @@ use std::{
     mem::MaybeUninit,
     process::{Child, ChildStdout, Command, Stdio},
     sync::{
-        mpsc::{self, Receiver},
+        mpsc::{self, Receiver, SyncSender},
         Arc,
     },
     thread::{self, JoinHandle},
@@ -23,14 +25,16 @@ mod speech;
 mod util;
 mod vad;
 
-type U8Consumer = Consumer<u8, Arc<SharedRb<u8, Vec<MaybeUninit<u8>>>>>;
+type F32Consumer = Consumer<f32, Arc<SharedRb<f32, Vec<MaybeUninit<f32>>>>>;
+type SegmentProducer = Producer<vad::VadSegment, Arc<SharedRb<vad::VadSegment, Vec<MaybeUninit<vad::VadSegment>>>>>;
+type SegmentConsumer = Consumer<vad::VadSegment, Arc<SharedRb<vad::VadSegment, Vec<MaybeUninit<vad::VadSegment>>>>>;
 
 enum ThreadState {
     End,
     Sync,
 }
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// path of whisper model
@@ -56,15 +60,30 @@ struct Args {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
-    let (tx, rx) = mpsc::channel::<ThreadState>();
-
-    // 1Mb buffer
-    let rb_size = 1024 * 1024;
-    let mut rb = LocalRb::<u8, Vec<_>>::new(rb_size);
-    let (mut ts_prod, mut ts_cons) = rb.split_ref();
+    let logger = Log::new(args.verbose);
 
     let (mut child, stdout) = get_yt_dlp_stdout(&args.url);
     let mut reader = BufReader::new(stdout);
+
+    // local buffer for ts file in 1Mb
+    let rb_size = 1024 * 1024;
+    let rb = LocalRb::<u8, Vec<_>>::new(rb_size);
+    let (mut prod, mut cons) = rb.split();
+
+    // shared buffer f32 transformed pcm in 30s audio data
+    let rb_size = YOUTUBE_TS_SAMPLE_RATE as usize * 30;
+    let rb = HeapRb::<f32>::new(rb_size);
+    let (mut ts_prod, ts_cons) = rb.split();
+
+    // shared buffer for vad output in 20 segment
+    let rb = HeapRb::<vad::VadSegment>::new(20);
+    let (vad_prod, vad_cons ) = rb.split();
+
+    let (tx, rx) = mpsc::sync_channel::<ThreadState>(1);
+    let (vad_tx, vad_rx) = mpsc::sync_channel::<ThreadState>(1);
+
+    let handle_vad = evoke_vad_thread(args.clone(), (vad_tx.clone(), rx), (vad_prod, ts_cons));
+    let handle_whisper = evoke_whisper_thread(args, vad_rx, vad_cons);
 
     loop {
         let buf = reader.fill_buf()?;
@@ -73,17 +92,39 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
 
         let len = buf.len();
-        ts_prod.push_slice(buf);
+        prod.push_slice(buf);
 
-        if ts_prod.is_full() {
-            todo!();
+        if prod.is_full() || prod.len() > 128000 {
+            let data = cons.pop_iter().collect::<Vec<u8>>();
+            logger.verbose(format!("Reading {}kb data from yt-dlp", data.len() / 1024));
+
+            match audio::get_audio_data(&data) {
+                Ok((audio_data, dur)) => {
+                    logger.verbose(format!(
+                        "Get {}kb audio data and duration {:.3}s from ts",
+                        audio_data.len() / 1024,
+                        dur
+                    ));
+
+                    ts_prod.push_slice(&audio_data);
+                    if tx.send(ThreadState::Sync).is_err() {
+                        break;
+                    }
+                }
+                Err(err) => {
+                    logger.error(err.to_string());
+                }
+            }
         }
 
         reader.consume(len);
     }
 
-    child.kill().expect("failed to wait on yt-dlp");
-    let _ = tx.send(ThreadState::End);
+    tx.send(ThreadState::End).unwrap();
+    vad_tx.send(ThreadState::End).unwrap();
+    child.kill().expect("failed to kill yt-dlp process");
+    handle_vad.join().unwrap();
+    handle_whisper.join().unwrap();
 
     Ok(())
 }
@@ -105,10 +146,63 @@ fn get_yt_dlp_stdout(url: &str) -> (Child, ChildStdout) {
     (child, stdout)
 }
 
+fn evoke_vad_thread(
+    args: Args,
+    channel: (SyncSender<ThreadState>, Receiver<ThreadState>),
+    rb: (SegmentProducer, F32Consumer),
+) -> JoinHandle<()> {
+    let logger = Log::new(args.verbose);
+    let (tx, rx) = channel;
+    let (mut prod, mut cons) = rb;
+
+    thread::spawn(move || {
+        let mut vad_state = VadState::new().unwrap();
+        let mut rb = LocalRb::<f32, Vec<_>>::new(WINDOW_SIZE_SAMPLES);
+
+        while let Ok(ThreadState::Sync) = rx.recv() {
+            if cons.is_empty() {
+                logger.error("empty pcm data");
+                continue;
+            }
+
+            let data = cons.pop_iter().collect::<Vec<f32>>();
+            let mut data = resample_to_16k(&data, YOUTUBE_TS_SAMPLE_RATE as f64);
+
+            if rb.len() > 0 {
+                data.splice(0..0, rb.pop_iter().collect::<Vec<f32>>());
+            }
+
+            let (left, right) = split_audio_data_with_window_size(data);
+            if let Some(d) = right {
+                d.iter().for_each(|d| {
+                    rb.push_overwrite(*d);
+                })
+            }
+
+            if let Some(data) = left {
+                let mut buf = vec![];
+
+                let running_calc = Instant::now();
+                data.chunks(WINDOW_SIZE_SAMPLES).for_each(|data| {
+                    let _ = vad::vad(&mut vad_state, data.to_vec(), &mut buf);
+                });
+                logger.verbose(format!("vad process time: {}s, detect {} segment", running_calc.elapsed().as_secs(), buf.len()));
+
+                if !buf.is_empty() {
+                    prod.push_iter(&mut buf.into_iter());
+                    if tx.send(ThreadState::Sync).is_err() {
+                        break;
+                    }
+                }
+            }
+        }
+    })
+}
+
 fn evoke_whisper_thread(
     args: Args,
     rx: Receiver<ThreadState>,
-    mut cons: U8Consumer,
+    mut cons: SegmentConsumer,
 ) -> JoinHandle<()> {
     let ctx = WhisperContext::new(&args.model).expect("failed to load model");
     let logger = Log::new(args.verbose);
@@ -123,41 +217,27 @@ fn evoke_whisper_thread(
                 continue;
             }
 
-            let data = cons.pop_iter().collect::<Vec<u8>>();
-            logger.verbose(format!("Reading {}kb data from yt-dlp", data.len() / 1024));
+            cons.pop_iter().for_each(|segment| {
+                let config = SpeechConfig::new(args.threads as c_int, Some(&args.lang));
+                let mut payload: WhisperPayload = WhisperPayload::new(&segment.data, config);
+                let running_calc = Instant::now();
 
-            match audio::get_audio_data(&data) {
-                Ok((audio_data, dur)) => {
-                    logger.verbose(format!(
-                        "Get {}kb audio data and duration {:.3}s from ts",
-                        audio_data.len() / 1024,
-                        dur
-                    ));
+                let segment_time = (streaming_time * 1000.0) as i64;
+                streaming_time += segment.duration as f64;
 
-                    let config = SpeechConfig::new(args.threads as c_int, Some(&args.lang));
-                    let mut payload: WhisperPayload = WhisperPayload::new(&audio_data, config);
-                    let running_calc = Instant::now();
+                speech::process(&mut state, &mut payload, &mut |segment, start| {
+                    println!(
+                        "[{}] {}",
+                        util::format_timestamp_to_time(segment_time + start),
+                        segment
+                    );
+                });
 
-                    let segment_time = (streaming_time * 1000.0) as i64;
-                    streaming_time += dur;
-
-                    speech::process(&mut state, &mut payload, &mut |segment, start| {
-                        println!(
-                            "[{}] {}",
-                            util::format_timestamp_to_time(segment_time + start),
-                            segment
-                        );
-                    });
-
-                    logger.verbose(format!(
-                        "whisper process time: {}s",
-                        running_calc.elapsed().as_secs()
-                    ));
-                }
-                Err(err) => {
-                    logger.error(err.to_string());
-                }
-            }
+                logger.verbose(format!(
+                    "whisper process time: {}s",
+                    running_calc.elapsed().as_secs()
+                ));
+            });
         }
     })
 }

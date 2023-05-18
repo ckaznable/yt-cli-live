@@ -14,7 +14,7 @@ use symphonia::core::{
     probe::Hint,
 };
 
-const YOUTUBE_TS_SAMPLE_RATE: u16 = 44100;
+pub const YOUTUBE_TS_SAMPLE_RATE: u16 = 44100;
 
 #[derive(Debug)]
 pub enum Error {
@@ -193,7 +193,8 @@ fn extract_ts_audio(raw: &[u8]) -> Vec<u8> {
     data
 }
 
-pub fn resample_to_16k(input: &[f32], input_sample_rate: f64, output_sample_rate: f64) -> Vec<f32> {
+pub fn resample_to_16k(input: &[f32], input_sample_rate: f64) -> Vec<f32> {
+    let output_sample_rate = 16000.;
     let params = InterpolationParameters {
         sinc_len: 256,
         f_cutoff: 0.95,
