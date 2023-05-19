@@ -1,6 +1,6 @@
 # Youtube Text Live Streaming in CLI
 
-This project is currently a work in progress (WIP). It aims to enable streaming YouTube videos and converting the audio into text, displaying it in the command line interface (CLI). The project utilizes the [whisper-rs](https://github.com/tazz4843/whisper-rs), [whisper.cpp](https://github.com/ggerganov/whisper.cpp) and [yt-dlp](https://github.com/yt-dlp/yt-dlp) libraries and is being developed in Rust.
+This project is currently a work in progress (WIP). It aims to enable streaming YouTube videos and converting the audio into text, displaying it in the command line interface (CLI). The project utilizes the [whisper-rs](https://github.com/tazz4843/whisper-rs), [whisper.cpp](https://github.com/ggerganov/whisper.cpp), [silero-vad](https://github.com/snakers4/silero-vad) and [yt-dlp](https://github.com/yt-dlp/yt-dlp) libraries and is being developed in Rust.
 
 Please note that the project is still under active development, and certain features or functionalities may be incomplete or subject to change. Contributions, suggestions, and bug reports are welcome.
 
@@ -8,7 +8,15 @@ Please note that the project is still under active development, and certain feat
 
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp)
 
-Using yt-dlp for youtube streaming
+This project using yt-dlp for youtube streaming
+
+- whisper model
+
+This project using whisper for ASR(Automatic Speech Recognition)
+
+then you can following [whisper.cpp](https://github.com/ggerganov/whisper.cpp) README to download whisper models
+
+Suggested use of base or small model
 
 ## Usage
 
