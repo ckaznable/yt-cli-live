@@ -68,6 +68,12 @@ impl VadState {
             rb_cons: cons,
         })
     }
+
+    fn init(&mut self) {
+        self.window_count = 0;
+        self.speech_end_ts = 0;
+        self.speech_start_ts = 0;
+    }
 }
 
 #[derive(Default)]
@@ -82,6 +88,16 @@ pub fn vad(
     buf: &mut Vec<VadSegment>,
 ) -> TractResult<()> {
     state.rb_prod.push_slice(&audio_data);
+
+    if state.rb_prod.is_full() {
+        state.init();
+        buf.push(VadSegment {
+            data: state.rb_cons.pop_iter().collect_vec(),
+            duration: 15.
+        });
+        return Ok(())
+    }
+
     let pcm = Array::from_shape_vec((1, audio_data.len()), audio_data).unwrap();
     let pcm = pcm.into_arc_tensor();
     let samples = pcm.shape()[1];
@@ -122,10 +138,7 @@ pub fn vad(
 
         if speech_sample_offset - state.speech_end_ts >= MIN_SILENCE_SAMPLES {
             if state.speech_end_ts - state.speech_start_ts > MIN_SPEECH_SAMPLES {
-                state.window_count = 0;
-                state.speech_end_ts = 0;
-                state.speech_start_ts = 0;
-
+                state.init();
                 buf.push(VadSegment {
                     data: state.rb_cons.pop_iter().collect_vec(),
                     duration: speech_sample_offset as f32 / SAMPLE_RATE,
