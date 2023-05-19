@@ -114,8 +114,8 @@ pub fn vad(
 
     let speech_prob = outputs[0].as_slice::<f32>()?[1];
 
-    const MIN_SILENCE_DURATION_MS: u32 = 1000;
-    const MIN_SPEECH_DURATION_MS: u32 = 1000;
+    const MIN_SILENCE_DURATION_MS: u32 = 800;
+    const MIN_SPEECH_DURATION_MS: u32 = 300;
     const THRESHOLD: f32 = 0.5;
     const NEG_THRESHOLD: f32 = 0.1;
     const MIN_SILENCE_SAMPLES: u32 = MIN_SILENCE_DURATION_MS * SAMPLE_RATE as u32 / 1000;
