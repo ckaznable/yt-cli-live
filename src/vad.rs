@@ -1,4 +1,4 @@
-use std::{mem::MaybeUninit, rc::Rc};
+use std::{mem::MaybeUninit, rc::Rc, io::Cursor};
 
 use ringbuf::{Consumer, LocalRb, Producer};
 use tract_onnx::{
@@ -34,8 +34,10 @@ pub struct VadState {
 
 impl VadState {
     pub fn new() -> TractResult<VadState> {
+        let bytes = include_bytes!("../models/silero_vad.onnx");
+        let mut cursor = Cursor::new(bytes);
         let model = onnx()
-            .model_for_path("models/silero_vad.onnx")?
+            .model_for_read(&mut cursor)?
             .with_input_names(["input", "h0", "c0"])?
             .with_output_names(["output", "hn", "cn"])?
             .with_input_fact(
