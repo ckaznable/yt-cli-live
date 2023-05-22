@@ -1,8 +1,7 @@
-use audio::{YOUTUBE_TS_SAMPLE_RATE, resample_to_16k};
+use audio::{resample_to_16k, YOUTUBE_TS_SAMPLE_RATE};
 use clap::Parser;
-use ringbuf::{Consumer, LocalRb, SharedRb, HeapRb, Producer, Rb};
+use ringbuf::{Consumer, HeapRb, LocalRb, Producer, Rb, SharedRb};
 use speech::{SpeechConfig, WhisperPayload};
-use vad::{VadState, WINDOW_SIZE_SAMPLES, split_audio_data_with_window_size};
 use std::{
     error::Error,
     ffi::c_int,
@@ -16,6 +15,7 @@ use std::{
     thread::{self, JoinHandle},
     time::Instant,
 };
+use vad::{split_audio_data_with_window_size, VadState, WINDOW_SIZE_SAMPLES};
 use whisper_rs::WhisperContext;
 
 use util::Log;
@@ -26,8 +26,10 @@ mod util;
 mod vad;
 
 type F32Consumer = Consumer<f32, Arc<SharedRb<f32, Vec<MaybeUninit<f32>>>>>;
-type SegmentProducer = Producer<vad::VadSegment, Arc<SharedRb<vad::VadSegment, Vec<MaybeUninit<vad::VadSegment>>>>>;
-type SegmentConsumer = Consumer<vad::VadSegment, Arc<SharedRb<vad::VadSegment, Vec<MaybeUninit<vad::VadSegment>>>>>;
+type SegmentProducer =
+    Producer<vad::VadSegment, Arc<SharedRb<vad::VadSegment, Vec<MaybeUninit<vad::VadSegment>>>>>;
+type SegmentConsumer =
+    Consumer<vad::VadSegment, Arc<SharedRb<vad::VadSegment, Vec<MaybeUninit<vad::VadSegment>>>>>;
 
 enum ThreadState {
     End,
@@ -77,7 +79,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // shared buffer for vad output in 20 segment
     let rb = HeapRb::<vad::VadSegment>::new(20);
-    let (vad_prod, vad_cons ) = rb.split();
+    let (vad_prod, vad_cons) = rb.split();
 
     let (tx, rx) = mpsc::sync_channel::<ThreadState>(1);
     let (vad_tx, vad_rx) = mpsc::sync_channel::<ThreadState>(1);
@@ -189,7 +191,12 @@ fn evoke_vad_thread(
                 data.chunks(WINDOW_SIZE_SAMPLES).for_each(|data| {
                     let _ = vad::vad(&mut vad_state, data.to_vec(), &mut buf);
                 });
-                logger.verbose(format!("vad process time: {}s, detect {} segment", running_calc.elapsed().as_secs(), buf.len()));
+
+                logger.verbose(format!(
+                    "vad process time: {}s, detect {} segment",
+                    running_calc.elapsed().as_secs(),
+                    buf.len()
+                ));
 
                 if !buf.is_empty() {
                     prod.push_iter(&mut buf.into_iter());

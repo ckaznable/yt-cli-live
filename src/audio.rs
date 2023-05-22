@@ -202,14 +202,8 @@ pub fn resample_to_16k(input: &[f32], input_sample_rate: f64) -> Vec<f32> {
         window: WindowFunction::BlackmanHarris2,
     };
 
-    let mut resampler = SincFixedIn::<f32>::new(
-        16000. / input_sample_rate,
-        2.0,
-        params,
-        input.len(),
-        1,
-    )
-    .unwrap();
+    let mut resampler =
+        SincFixedIn::<f32>::new(16000. / input_sample_rate, 2.0, params, input.len(), 1).unwrap();
 
     let waves_in = vec![input.to_vec()];
     let mut output = resampler.process(&waves_in, None).unwrap();

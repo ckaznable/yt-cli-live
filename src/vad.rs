@@ -1,4 +1,4 @@
-use std::{mem::MaybeUninit, rc::Rc, io::Cursor};
+use std::{io::Cursor, mem::MaybeUninit, rc::Rc};
 
 use ringbuf::{Consumer, LocalRb, Producer};
 use tract_onnx::{
@@ -95,9 +95,9 @@ pub fn vad(
         state.init();
         buf.push(VadSegment {
             data: state.rb_cons.pop_iter().collect_vec(),
-            duration: 15.
+            duration: 15.,
         });
-        return Ok(())
+        return Ok(());
     }
 
     let pcm = Array::from_shape_vec((1, audio_data.len()), audio_data).unwrap();
