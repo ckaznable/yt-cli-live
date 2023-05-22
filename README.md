@@ -35,6 +35,12 @@ Options:
   -V, --version            Print version
 ```
 
+### Example
+
+```shell
+yt-cli-live -t 8 -m <model path> -l ja <youtube streaming id or url>
+```
+
 ## Build Dependencies
 
 - rustc
