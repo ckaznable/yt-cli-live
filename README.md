@@ -35,6 +35,24 @@ Options:
   -V, --version            Print version
 ```
 
+## Build Dependencies
+
+- rustc
+
+yt-cli-live is written in Rust, so you'll need to grab a [Rust installation](https://www.rust-lang.org/) in order to compile it.
+
+- libclang-dev
+
+you need `libclang-dev` in `linux`
+
+## Building
+
+```shell
+git clone https://github.com/ckaznable/yt-cli-live
+cd yt-cli-live
+cargo build --release
+```
+
 ## LICENSE
 
 MIT
