@@ -50,7 +50,7 @@ jobs:
           toolchain: ${{ matrix.build || 'stable' }}
 
       - name: install whisper.cpp deps
-        run: sudo apt-get update && sudo apt-get install libclang-dev
+        run: sudo apt-get update && sudo apt-get install libclang-dev -y
 
       - name: Build debug
         run: cargo build --locked
