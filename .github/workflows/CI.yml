@@ -90,12 +90,12 @@ jobs:
       - name: Package
         shell: bash
         run: |
-          #strip target/${{ matrix.target }}/release/poketex
+          #strip target/${{ matrix.target }}/release/yt-cli-live
           cd target/${{ matrix.target }}/release
-          tar czvf ../../../poketex-${{ matrix.target }}.tar.gz poketex
+          tar czvf ../../../yt-cli-live-${{ matrix.target }}.tar.gz yt-cli-live
           cd -
 
       - name: Publish
         uses: softprops/action-gh-release@v1
         with:
-          files: 'poketex*'
+          files: 'yt-cli-live*'
