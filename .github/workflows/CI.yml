@@ -84,6 +84,9 @@ jobs:
       - name: Install Cross
         run: cargo install cross
 
+      - name: install whisper.cpp deps
+        run: sudo apt-get update && sudo apt-get install libclang-dev -y
+
       - name: Build target
         run: cross build --release --locked --target ${{ matrix.target }}
 
