@@ -57,7 +57,10 @@ pub fn process<F: FnMut(&str, i64)>(
             (state.full_get_segment_text(i), state.full_get_segment_t0(i))
         {
             if last_segment != segment {
-                f(process_segment(segment.as_ref()).as_ref(), start_timestamp);
+                let segment = process_segment(segment.as_ref());
+                if !segment.is_empty() {
+                    f(&segment, start_timestamp);
+                }
             }
 
             last_segment = segment;
