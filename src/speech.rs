@@ -108,9 +108,16 @@ fn replace_effect_segment_to_space(input: &str) -> String {
 
 fn merge_duplicate_segment(input: &str) -> String {
     let mut result = input.to_string();
-    let mut prev_str = String::new();
+
+    let mut s = input.split(' ');
+    if let Some(first_sp) = s.next() {
+        if s.all(|sp| sp == first_sp) {
+            return first_sp.to_string();
+        }
+    }
 
     let half_len = result.len() / 2;
+    let mut prev_str = String::new();
 
     for (i, c) in input.chars().enumerate() {
         if i > half_len {
