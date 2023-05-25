@@ -1,3 +1,5 @@
+use owo_colors::OwoColorize;
+
 #[derive(Clone, Default)]
 pub struct Log {
     enable: bool,
@@ -10,13 +12,13 @@ impl Log {
 
     pub fn verbose<S: AsRef<str>>(&self, msg: S) {
         if self.enable {
-            println!("[verbose] {}", msg.as_ref());
+            println!("{} {}", "[verbose]".green(), msg.as_ref().green());
         }
     }
 
     pub fn error<S: AsRef<str>>(&self, msg: S) {
         if self.enable {
-            println!("[error] {}", msg.as_ref());
+            println!("{} {}", "[error]".red(), msg.as_ref().red().bold());
         }
     }
 }

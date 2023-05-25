@@ -1,5 +1,6 @@
 use audio::{resample_to_16k, YOUTUBE_TS_SAMPLE_RATE};
 use clap::Parser;
+use owo_colors::OwoColorize;
 use ringbuf::{Consumer, HeapRb, LocalRb, Producer, Rb, SharedRb};
 use speech::{SpeechConfig, WhisperPayload};
 use std::{
@@ -241,7 +242,7 @@ fn evoke_whisper_thread(
                 speech::process(&mut state, &mut payload, &mut |segment, start| {
                     println!(
                         "[{}] {}",
-                        util::format_timestamp_to_time(segment_time + start),
+                        util::format_timestamp_to_time(segment_time + start).bright_yellow(),
                         segment
                     );
                 });
