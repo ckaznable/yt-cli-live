@@ -29,3 +29,15 @@ pub fn format_timestamp_to_time(ms: i64) -> String {
     let milliseconds = ms % 1000;
     format!("{:02}:{:02}:{:03}", minutes, seconds, milliseconds)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_format_timestamp_to_time() {
+        let time = 1000 * 60 * 60 * 3 + 1000 * 60 * 3 + 3;
+        let result = format_timestamp_to_time(time);
+        assert_eq!(result, "03:00:003");
+    }
+}
