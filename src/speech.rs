@@ -57,7 +57,10 @@ pub fn process<F: FnMut(&str, i64)>(
             (state.full_get_segment_text(i), state.full_get_segment_t0(i))
         {
             if last_segment != segment {
-                f(segment.as_ref(), start_timestamp);
+                let segment = process_segment(segment.as_ref());
+                if !segment.is_empty() {
+                    f(&segment, start_timestamp);
+                }
             }
 
             last_segment = segment;
@@ -81,4 +84,59 @@ fn get_params<'a, 'b>(config: &SpeechConfig<'a>) -> FullParams<'a, 'b> {
     params.set_print_timestamps(false);
 
     params
+}
+
+fn process_segment(segment: &str) -> String {
+    let segment = replace_effect_segment_to_space(segment);
+    merge_duplicate_segment(segment.trim())
+}
+
+fn replace_effect_segment_to_space(input: &str) -> String {
+    let mut result = String::new();
+    let mut in_parentheses = false;
+
+    for c in input.chars() {
+        if c == '(' {
+            in_parentheses = true;
+        } else if c == ')' {
+            in_parentheses = false;
+            result.push(' ');
+        } else if !in_parentheses {
+            result.push(c);
+        }
+    }
+
+    result
+}
+
+fn merge_duplicate_segment(input: &str) -> String {
+    let mut result = input.to_string();
+
+    let mut s = input.split(' ');
+    if let Some(first_sp) = s.next() {
+        if s.all(|sp| sp == first_sp) {
+            return first_sp.to_string();
+        }
+    }
+
+    let half_len = result.len() / 2;
+    let mut prev_str = String::new();
+
+    for (i, c) in input.chars().enumerate() {
+        if i > half_len {
+            return result;
+        }
+
+        prev_str.push(c);
+        if prev_str.len() > 4 {
+            let detect_str = prev_str.to_owned() + prev_str.to_owned().as_ref();
+            while result.starts_with(&detect_str) {
+                result = result.replace(&detect_str, "");
+            }
+
+            return result;
+        }
+    }
+
+    result
 }
