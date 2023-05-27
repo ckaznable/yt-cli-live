@@ -1,6 +1,6 @@
 [package]
 name = "yt-cli-live"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["ckaznable <kami25565@gmail.com>"]
 description = "youtube text streaming in cli"
