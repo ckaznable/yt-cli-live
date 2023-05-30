@@ -1,6 +1,8 @@
 use std::{fmt::Display, io::Cursor};
 
-use rubato::{Resampler, SincFixedIn, WindowFunction, SincInterpolationParameters, SincInterpolationType};
+use rubato::{
+    Resampler, SincFixedIn, SincInterpolationParameters, SincInterpolationType, WindowFunction,
+};
 use symphonia::core::{
     audio::AudioBuffer,
     codecs::{DecoderOptions, CODEC_TYPE_NULL},
