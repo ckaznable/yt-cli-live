@@ -1817,11 +1817,20 @@ name = "yt-cli-live"
 version = "0.1.1"
 dependencies = [
  "clap",
- "mpeg2ts",
  "owo-colors",
  "ringbuf",
  "rubato",
  "symphonia",
  "tract-onnx",
  "whisper-rs",
+ "yt_tsu",
+]
+
+[[package]]
+name = "yt_tsu"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd9ec4c70867cf4a08d56895da7761d801b999f49d29e79120d257c7ea4a6795"
+dependencies = [
+ "mpeg2ts",
 ]
