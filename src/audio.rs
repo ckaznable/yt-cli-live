@@ -4,7 +4,7 @@ use mpeg2ts::{
     es::StreamType,
     ts::{ReadTsPacket, TsPacketReader, TsPayload},
 };
-use rubato::{InterpolationParameters, InterpolationType, Resampler, SincFixedIn, WindowFunction};
+use rubato::{Resampler, SincFixedIn, WindowFunction, SincInterpolationParameters, SincInterpolationType};
 use symphonia::core::{
     audio::AudioBuffer,
     codecs::{DecoderOptions, CODEC_TYPE_NULL},
@@ -194,10 +194,10 @@ fn extract_ts_audio(raw: &[u8]) -> Vec<u8> {
 }
 
 pub fn resample_to_16k(input: &[f32], input_sample_rate: f64) -> Vec<f32> {
-    let params = InterpolationParameters {
+    let params = SincInterpolationParameters {
         sinc_len: 256,
         f_cutoff: 0.95,
-        interpolation: InterpolationType::Linear,
+        interpolation: SincInterpolationType::Linear,
         oversampling_factor: 256,
         window: WindowFunction::BlackmanHarris2,
     };
