@@ -1,10 +1,8 @@
 use std::{fmt::Display, io::Cursor};
 
-use mpeg2ts::{
-    es::StreamType,
-    ts::{ReadTsPacket, TsPacketReader, TsPayload},
+use rubato::{
+    Resampler, SincFixedIn, SincInterpolationParameters, SincInterpolationType, WindowFunction,
 };
-use rubato::{InterpolationParameters, InterpolationType, Resampler, SincFixedIn, WindowFunction};
 use symphonia::core::{
     audio::AudioBuffer,
     codecs::{DecoderOptions, CODEC_TYPE_NULL},
@@ -13,6 +11,7 @@ use symphonia::core::{
     meta::MetadataOptions,
     probe::Hint,
 };
+use yt_tsu::audio::extract_ts_audio;
 
 pub const YOUTUBE_TS_SAMPLE_RATE: u16 = 22050;
 
@@ -145,59 +144,11 @@ fn get_mono_f32(raw: Vec<u8>) -> Result<(Vec<f32>, f64), Error> {
     Ok((data, dur / (rate * planes_num)))
 }
 
-fn extract_ts_audio(raw: &[u8]) -> Vec<u8> {
-    let cursor = Cursor::new(raw);
-    let mut reader = TsPacketReader::new(cursor);
-
-    let mut data: Vec<u8> = vec![];
-    let mut audio_pid: u16 = 0;
-
-    loop {
-        match reader.read_ts_packet() {
-            Ok(Some(packet)) => {
-                use TsPayload::*;
-
-                let pid = packet.header.pid.as_u16();
-                let is_audio_pid = pid == audio_pid;
-
-                if let Some(payload) = packet.payload {
-                    match payload {
-                        Pmt(pmt) => {
-                            if let Some(el) = pmt
-                                .table
-                                .iter()
-                                .find(|el| el.stream_type == StreamType::AdtsAac)
-                            {
-                                audio_pid = el.elementary_pid.as_u16();
-                            }
-                        }
-                        Pes(pes) => {
-                            if pes.header.stream_id.is_audio() && is_audio_pid {
-                                data.extend_from_slice(&pes.data);
-                            }
-                        }
-                        Raw(bytes) => {
-                            if is_audio_pid {
-                                data.extend_from_slice(&bytes);
-                            }
-                        }
-                        _ => (),
-                    }
-                }
-            }
-            Ok(None) => break,
-            _ => (),
-        }
-    }
-
-    data
-}
-
 pub fn resample_to_16k(input: &[f32], input_sample_rate: f64) -> Vec<f32> {
-    let params = InterpolationParameters {
+    let params = SincInterpolationParameters {
         sinc_len: 256,
         f_cutoff: 0.95,
-        interpolation: InterpolationType::Linear,
+        interpolation: SincInterpolationType::Linear,
         oversampling_factor: 256,
         window: WindowFunction::BlackmanHarris2,
     };
@@ -208,28 +159,4 @@ pub fn resample_to_16k(input: &[f32], input_sample_rate: f64) -> Vec<f32> {
     let waves_in = vec![input.to_vec()];
     let mut output = resampler.process(&waves_in, None).unwrap();
     output.remove(0)
-}
-
-#[cfg(test)]
-mod tests {
-    use std::{fs::File, io::Read};
-
-    use super::extract_ts_audio;
-
-    fn read_file_to_bytes(path: &str) -> Result<Vec<u8>, std::io::Error> {
-        let mut file = File::open(path)?;
-        let mut buffer = Vec::new();
-        file.read_to_end(&mut buffer)?;
-        Ok(buffer)
-    }
-
-    #[test]
-    fn extract_ts_must_work() {
-        let file_path = "tests/test.ts";
-        if let Ok(bytes) = read_file_to_bytes(file_path) {
-            let data = extract_ts_audio(bytes.as_slice());
-            assert!(!data.is_empty());
-            assert!(data.len() < bytes.len());
-        }
-    }
 }
