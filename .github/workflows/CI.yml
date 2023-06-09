@@ -52,6 +52,9 @@ jobs:
       - name: install whisper.cpp deps
         run: sudo apt-get update && sudo apt-get install libclang-dev -y
 
+      - name: install feature = zh deps
+        run: sudo apt install libopencc-dev opencc -y
+
       - name: Build debug
         run: cargo build --locked
 
