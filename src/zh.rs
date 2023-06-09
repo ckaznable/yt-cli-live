@@ -1,7 +1,7 @@
 use opencc_rust::{DefaultConfig, OpenCC};
 
 pub struct ZHTransformer {
-    convert: OpenCC
+    convert: OpenCC,
 }
 
 impl ZHTransformer {

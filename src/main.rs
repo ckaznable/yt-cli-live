@@ -226,7 +226,11 @@ fn evoke_whisper_thread(
     thread::spawn(move || {
         let mut state = ctx.create_state().expect("failed to create state");
         let mut streaming_time = 0.0f64;
-        let lang = if args.lang.starts_with("zh") { "zh" } else { &args.lang };
+        let lang = if args.lang.starts_with("zh") {
+            "zh"
+        } else {
+            &args.lang
+        };
 
         #[cfg(feature = "zh")]
         let zh_transformer = zh::ZHTransformer::from(&args.lang);
