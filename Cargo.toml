@@ -17,6 +17,7 @@ tract-onnx = "0.17.9"
 rubato = "0.13.0"
 owo-colors = "3.5.0"
 yt_tsu = "0.1.0"
+opencc-rust = { version = "1.1.15", optional = true }
 
 [profile.release]
 opt-level = 'z'     # Optimize for size
@@ -24,3 +25,7 @@ lto = true          # Enable link-time optimization
 codegen-units = 1   # Reduce number of codegen units to increase optimizations
 panic = 'abort'     # Abort on panic
 strip = true        # Strip symbols from binary*
+
+[features]
+default = []
+zh = ["opencc-rust/static-dictionaries"]
