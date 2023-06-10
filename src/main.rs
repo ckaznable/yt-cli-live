@@ -25,6 +25,8 @@ mod audio;
 mod speech;
 mod util;
 mod vad;
+#[cfg(feature = "zh")]
+mod zh;
 
 type F32Consumer = Consumer<f32, Arc<SharedRb<f32, Vec<MaybeUninit<f32>>>>>;
 type SegmentProducer =
@@ -224,6 +226,14 @@ fn evoke_whisper_thread(
     thread::spawn(move || {
         let mut state = ctx.create_state().expect("failed to create state");
         let mut streaming_time = 0.0f64;
+        let lang = if args.lang.starts_with("zh") {
+            "zh"
+        } else {
+            &args.lang
+        };
+
+        #[cfg(feature = "zh")]
+        let zh_transformer = zh::ZHTransformer::from(&args.lang);
 
         while let Ok(ThreadState::Sync) = rx.recv() {
             if cons.is_empty() {
@@ -232,7 +242,7 @@ fn evoke_whisper_thread(
             }
 
             cons.pop_iter().for_each(|segment| {
-                let config = SpeechConfig::new(args.threads as c_int, Some(&args.lang));
+                let config = SpeechConfig::new(args.threads as c_int, Some(lang));
                 let mut payload: WhisperPayload = WhisperPayload::new(&segment.data, config);
                 let running_calc = Instant::now();
 
@@ -240,6 +250,13 @@ fn evoke_whisper_thread(
                 streaming_time += segment.duration as f64;
 
                 speech::process(&mut state, &mut payload, &mut |segment, start| {
+                    #[cfg(feature = "zh")]
+                    let segment = if let Ok(zh) = &zh_transformer {
+                        zh.convert(segment)
+                    } else {
+                        segment.to_string()
+                    };
+
                     println!(
                         "[{}] {}",
                         util::format_timestamp_to_time(segment_time + start).bright_yellow(),

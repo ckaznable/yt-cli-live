@@ -522,6 +522,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "lazy-static-include"
+version = "3.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b111244b70d4cf22aaaf8e0461ede19d623880f0f4779ee33dc35850a825bec3"
+dependencies = [
+ "lazy_static",
+ "manifest-dir-macros",
+ "syn 2.0.16",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -635,6 +646,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "abb12e687cfb44aa40f41fc3978ef76448f9b6038cad6aef4259d3c095a2382e"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "manifest-dir-macros"
+version = "0.1.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "450e5ef583bc05177c4975b9ea907047091a9f62e74e81fcafb99dbffac51e7e"
+dependencies = [
+ "once_cell",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.16",
 ]
 
 [[package]]
@@ -764,6 +787,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b7e5500299e16ebb147ae15a00a942af264cf3688f47923b8fc2cd5858f23ad3"
 
 [[package]]
+name = "opencc-rust"
+version = "1.1.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba09724567a3268572f2be89ac29678a9f9894231045061d65433625b1aab774"
+dependencies = [
+ "lazy-static-include",
+ "lazy_static",
+ "libc",
+ "pkg-config",
+]
+
+[[package]]
 name = "owo-colors"
 version = "3.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -843,6 +878,12 @@ dependencies = [
  "pest",
  "sha2",
 ]
+
+[[package]]
+name = "pkg-config"
+version = "0.3.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26072860ba924cbfa98ea39c8c19b4dd6a4a25423dbdf219c1eca91aa0cf6964"
 
 [[package]]
 name = "ppv-lite86"
@@ -1817,6 +1858,7 @@ name = "yt-cli-live"
 version = "0.1.1"
 dependencies = [
  "clap",
+ "opencc-rust",
  "owo-colors",
  "ringbuf",
  "rubato",
