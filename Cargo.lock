@@ -680,9 +680,9 @@ dependencies = [
 
 [[package]]
 name = "mpeg2ts"
-version = "0.2.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2eb83b63dca224c42df0d5bca584ab32b80dc1a35a27279ec4d3feab3d26cf2b"
+checksum = "6435feaa73e6dca8c812de3fea58331b4f35375798dcabe436a4321f0d21043d"
 dependencies = [
  "byteorder",
  "trackable",
@@ -1011,9 +1011,9 @@ dependencies = [
 
 [[package]]
 name = "rubato"
-version = "0.13.0"
+version = "0.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b07a5462e4488d95466680fcbad98cbe93d8ac78df84117794add9224cf9b21b"
+checksum = "e6dd52e80cfc21894deadf554a5673002938ae4625f7a283e536f9cf7c17b0d5"
 dependencies = [
  "num-complex",
  "num-integer",
@@ -1755,9 +1755,9 @@ dependencies = [
 
 [[package]]
 name = "yt_tsu"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd9ec4c70867cf4a08d56895da7761d801b999f49d29e79120d257c7ea4a6795"
+checksum = "c356096c2e83989b742fccf96f1a2b84dd42eedd6e27e791af780b7e04fadb36"
 dependencies = [
  "mpeg2ts",
 ]
